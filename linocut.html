@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Linocut</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --elevated: #242424;
+      --border: #2c2c2c;
+      --accent: #d4b483;
+      --text: #ede8de;
+      --text-dim: #5a5a5a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .tagline {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-left: auto;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Viewport ─────────────────────────────────────────── */
+
+    .viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #070707;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #mainCanvas {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      object-fit: contain;
+      image-rendering: crisp-edges;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .empty-ring {
+      width: 80px;
+      height: 80px;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      color: var(--text-dim);
+      line-height: 1.65;
+    }
+
+    .empty-state .hint {
+      font-size: 11px;
+      color: #3a3a3a;
+    }
+
+    /* ── Processing overlay ───────────────────────────────── */
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .overlay.active { display: flex; }
+
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+
+    .overlay-label {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Controls panel ───────────────────────────────────── */
+
+    .panel {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      padding: 14px 16px 16px;
+    }
+
+    .sliders {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-bottom: 13px;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-row label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      width: 72px;
+      flex-shrink: 0;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 22px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+      touch-action: pan-x;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      margin-top: -10px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.6);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.6);
+    }
+
+    .slider-val {
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-dim);
+      width: 28px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      flex: 1;
+      height: 46px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--elevated);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: opacity 0.12s;
+      letter-spacing: 0.01em;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active { opacity: 0.65; }
+
+    button.primary {
+      background: var(--accent);
+      color: #1a1208;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    button:disabled {
+      opacity: 0.28;
+      pointer-events: none;
+    }
+
+    #fileInput { display: none; }
+
+    /* ── Toast ────────────────────────────────────────────── */
+
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      padding: 9px 18px;
+      border-radius: 99px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 100;
+      letter-spacing: 0.02em;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="#1a1208">
+        <rect x="1" y="1" width="6" height="6" rx="1"/>
+        <rect x="9" y="1" width="6" height="6" rx="1"/>
+        <rect x="1" y="9" width="6" height="6" rx="1"/>
+        <rect x="11" y="11" width="2" height="4" rx="0.5"/>
+        <rect x="9" y="13" width="6" height="2" rx="0.5"/>
+      </svg>
+    </div>
+    <h1>Linocut</h1>
+  </div>
+  <span class="tagline">photo → woodblock print</span>
+</header>
+
+<div class="viewport" id="viewport" onclick="triggerCapture()">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-ring">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+    <p>Tap to take a photo<br>or choose from library</p>
+    <p class="hint">Supports JPEG, PNG, HEIC</p>
+  </div>
+
+  <canvas id="mainCanvas" style="display:none"></canvas>
+
+  <div class="overlay" id="overlay">
+    <div class="spinner"></div>
+    <span class="overlay-label" id="overlayLabel">Processing</span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="sliders">
+    <div class="slider-row">
+      <label for="sThreshold">Threshold</label>
+      <input type="range" id="sThreshold" min="10" max="245" value="120">
+      <span class="slider-val" id="vThreshold">120</span>
+    </div>
+    <div class="slider-row">
+      <label for="sSimplify">Simplify</label>
+      <input type="range" id="sSimplify" min="0" max="12" value="2" step="1">
+      <span class="slider-val" id="vSimplify">2</span>
+    </div>
+    <div class="slider-row">
+      <label for="sEdges">Edges</label>
+      <input type="range" id="sEdges" min="0" max="100" value="55">
+      <span class="slider-val" id="vEdges">55</span>
+    </div>
+    <div class="slider-row">
+      <label for="sTexture">Texture</label>
+      <input type="range" id="sTexture" min="0" max="100" value="18">
+      <span class="slider-val" id="vTexture">18</span>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="btnCamera" onclick="event.stopPropagation(); triggerCapture()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      Photo
+    </button>
+    <button id="btnPng" disabled onclick="event.stopPropagation(); exportPNG()">PNG</button>
+    <button id="btnSvg" class="primary" disabled onclick="event.stopPropagation(); exportSVG()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      SVG
+    </button>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*">
+<div class="toast" id="toast"></div>
+
+<!-- imagetracer for proper vector SVG export -->
+<script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js" crossorigin="anonymous"></script>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let srcImg = null;
+let processedData = null;
+
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+// ── Slider wiring ─────────────────────────────────────────────────────────────
+const sliders = [
+  { id: 'sThreshold', valId: 'vThreshold' },
+  { id: 'sSimplify',  valId: 'vSimplify'  },
+  { id: 'sEdges',     valId: 'vEdges'     },
+  { id: 'sTexture',   valId: 'vTexture'   },
+];
+
+sliders.forEach(({ id, valId }) => {
+  const el = document.getElementById(id);
+  const vEl = document.getElementById(valId);
+  el.addEventListener('input', () => {
+    vEl.textContent = el.value;
+    if (srcImg) scheduleProcess();
+  });
+});
+
+function getParams() {
+  return {
+    threshold: +document.getElementById('sThreshold').value,
+    blur:      +document.getElementById('sSimplify').value * 0.85,
+    edgeStr:   +document.getElementById('sEdges').value / 100,
+    texture:   +document.getElementById('sTexture').value,
+  };
+}
+
+// ── File capture ──────────────────────────────────────────────────────────────
+function triggerCapture() {
+  document.getElementById('fileInput').click();
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => { srcImg = img; runProcess(); };
+    img.onerror = () => showToast('Could not load image');
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── Processing ────────────────────────────────────────────────────────────────
+let schedTimer = null;
+function scheduleProcess() {
+  clearTimeout(schedTimer);
+  schedTimer = setTimeout(runProcess, 180);
+}
+
+function setOverlay(on, label = 'Processing') {
+  const ov = document.getElementById('overlay');
+  document.getElementById('overlayLabel').textContent = label;
+  ov.classList.toggle('active', on);
+}
+
+function runProcess() {
+  if (!srcImg) return;
+  setOverlay(true);
+  // Yield to let the overlay paint before heavy computation
+  requestAnimationFrame(() => setTimeout(() => {
+    try { doProcess(); }
+    finally { setOverlay(false); }
+  }, 16));
+}
+
+function doProcess() {
+  const MAX = 1100;
+  let w = srcImg.naturalWidth, h = srcImg.naturalHeight;
+  if (w > MAX || h > MAX) {
+    const s = MAX / Math.max(w, h);
+    w = Math.round(w * s);
+    h = Math.round(h * s);
+  }
+
+  canvas.width = w;
+  canvas.height = h;
+  ctx.drawImage(srcImg, 0, 0, w, h);
+  const raw = ctx.getImageData(0, 0, w, h);
+
+  processedData = applyLinocut(raw, getParams());
+  ctx.putImageData(processedData, 0, 0);
+
+  document.getElementById('emptyState').style.display = 'none';
+  canvas.style.display = 'block';
+  document.getElementById('btnPng').disabled = false;
+  document.getElementById('btnSvg').disabled = false;
+}
+
+// ── Linocut image processing ──────────────────────────────────────────────────
+
+// 4×4 Bayer ordered dither matrix (values 0–15)
+const BAYER = [
+  [ 0,  8,  2, 10],
+  [12,  4, 14,  6],
+  [ 3, 11,  1,  9],
+  [15,  7, 13,  5],
+];
+
+function applyLinocut(imageData, { threshold, blur, edgeStr, texture }) {
+  const { width: W, height: H, data } = imageData;
+  const N = W * H;
+
+  // 1 · Grayscale (luminance weights)
+  const gray = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+  }
+
+  // 2 · Gaussian blur (controls amount of detail retained)
+  const blurred = blur > 0 ? gaussBlur(gray, W, H, blur) : gray;
+
+  // 3 · Auto-level: stretch histogram to full range
+  let lo = 255, hi = 0;
+  for (let i = 0; i < N; i++) {
+    if (blurred[i] < lo) lo = blurred[i];
+    if (blurred[i] > hi) hi = blurred[i];
+  }
+  const span = hi - lo || 1;
+  const leveled = new Float32Array(N);
+  for (let i = 0; i < N; i++) leveled[i] = (blurred[i] - lo) / span * 255;
+
+  // 4 · Unsharp mask: pop edges before thresholding
+  const ublur = gaussBlur(leveled, W, H, 1.3);
+  const sharp = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    sharp[i] = Math.max(0, Math.min(255, leveled[i] + 1.6 * (leveled[i] - ublur[i])));
+  }
+
+  // 5 · Sobel edge map
+  const edges = sobelEdges(sharp, W, H);
+  let eMax = 0;
+  for (let i = 0; i < N; i++) if (edges[i] > eMax) eMax = edges[i];
+  const eScale = eMax > 0 ? 255 / eMax : 1;
+
+  // 6 · Threshold + edge overlay + Bayer dither for carved texture
+  const bayerAmp = texture * 0.65; // max ~65 px offset
+  const out = new Uint8ClampedArray(N * 4);
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+
+      // Bayer ordered dither creates a consistent carved-wood texture
+      const dither = (BAYER[y & 3][x & 3] / 16 - 0.5) * bayerAmp;
+
+      // Edge contribution: strong edges always go black
+      const edgeVal = edges[i] * eScale;
+      const edgeBlack = edgeStr > 0 && edgeVal > (1 - edgeStr) * 255;
+
+      const isBlack = (sharp[i] + dither) < threshold || edgeBlack;
+      const v = isBlack ? 0 : 255;
+
+      out[i*4]     = v;
+      out[i*4 + 1] = v;
+      out[i*4 + 2] = v;
+      out[i*4 + 3] = 255;
+    }
+  }
+
+  return new ImageData(out, W, H);
+}
+
+// ── Gaussian blur (separable, float) ─────────────────────────────────────────
+function gaussBlur(src, W, H, sigma) {
+  const r = Math.ceil(sigma * 2.5);
+  const k = new Float32Array(2*r + 1);
+  let kSum = 0;
+  for (let j = -r; j <= r; j++) {
+    k[j+r] = Math.exp(-(j*j) / (2*sigma*sigma));
+    kSum += k[j+r];
+  }
+  for (let j = 0; j < k.length; j++) k[j] /= kSum;
+
+  const tmp = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let v = 0;
+      for (let j = -r; j <= r; j++) {
+        v += src[y*W + Math.max(0, Math.min(W-1, x+j))] * k[j+r];
+      }
+      tmp[y*W + x] = v;
+    }
+  }
+
+  const dst = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let v = 0;
+      for (let j = -r; j <= r; j++) {
+        v += tmp[Math.max(0, Math.min(H-1, y+j)) * W + x] * k[j+r];
+      }
+      dst[y*W + x] = v;
+    }
+  }
+  return dst;
+}
+
+// ── Sobel edge detection ──────────────────────────────────────────────────────
+function sobelEdges(src, W, H) {
+  const dst = new Float32Array(W * H);
+  for (let y = 1; y < H-1; y++) {
+    for (let x = 1; x < W-1; x++) {
+      const tl=src[(y-1)*W+(x-1)], tc=src[(y-1)*W+x], tr=src[(y-1)*W+(x+1)];
+      const ml=src[y*W+(x-1)],                         mr=src[y*W+(x+1)];
+      const bl=src[(y+1)*W+(x-1)], bc=src[(y+1)*W+x], br=src[(y+1)*W+(x+1)];
+      const gx = -tl - 2*ml - bl + tr + 2*mr + br;
+      const gy = -tl - 2*tc - tr + bl + 2*bc + br;
+      dst[y*W + x] = Math.sqrt(gx*gx + gy*gy);
+    }
+  }
+  return dst;
+}
+
+// ── PNG export ────────────────────────────────────────────────────────────────
+function exportPNG() {
+  if (!processedData) return;
+  canvas.toBlob(blob => {
+    download(URL.createObjectURL(blob), 'linocut.png');
+    showToast('PNG saved');
+  }, 'image/png');
+}
+
+// ── SVG export ────────────────────────────────────────────────────────────────
+function exportSVG() {
+  if (!processedData) return;
+
+  const btn = document.getElementById('btnSvg');
+  btn.disabled = true;
+  btn.textContent = 'Tracing…';
+  setOverlay(true, 'Vectorising');
+
+  setTimeout(() => {
+    try {
+      let svgStr;
+
+      if (typeof ImageTracer !== 'undefined') {
+        // True vector tracing using imagetracerjs
+        svgStr = ImageTracer.getsvgstring(
+          { width: processedData.width, height: processedData.height, data: processedData.data },
+          {
+            numberofcolors: 2,
+            colorsampling: 2,
+            colorquantcycles: 1,
+            pathomit: 8,
+            ltres: 1,
+            qtres: 1,
+            scale: 1,
+            strokewidth: 0,
+            linefilter: false,
+            desc: false,
+            viewbox: false,
+            blurradius: 0,
+          }
+        );
+      } else {
+        // Fallback: embed processed image as PNG inside an SVG wrapper
+        svgStr = embeddedSVG(processedData);
+      }
+
+      const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+      download(URL.createObjectURL(blob), 'linocut.svg');
+      showToast('SVG exported');
+    } catch (err) {
+      console.error('SVG export failed:', err);
+      showToast('SVG failed — trying PNG fallback');
+      exportPNG();
+    } finally {
+      setOverlay(false);
+      btn.disabled = false;
+      btn.innerHTML =
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg> SVG`;
+    }
+  }, 50);
+}
+
+function embeddedSVG({ width, height, data }) {
+  const tmp = document.createElement('canvas');
+  tmp.width = width; tmp.height = height;
+  tmp.getContext('2d').putImageData(new ImageData(data, width, height), 0, 0);
+  const png = tmp.toDataURL('image/png');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"
+     viewBox="0 0 ${width} ${height}">
+  <image href="${png}" width="${width}" height="${height}"/>
+</svg>`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function download(url, filename) {
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
